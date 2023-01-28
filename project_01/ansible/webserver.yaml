@@ -1,0 +1,18 @@
+- name: Install Apache on EC2
+  hosts: tag_Name_cba_webserver01
+  become: true
+  tasks:
+  - name: Install Apache 
+    yum:
+      name: httpd
+      state: present
+  - name: Start Apache service
+    service:
+      name: httpd
+      state: started
+      enabled: true
+
+  - name: Copy index.html
+    copy:
+      src: https://drive.google.com/drive/folders/1lBZ2QeKZC_tDVJnxrlJYX4tqkBxQaKlN?usp=sharing
+      dest: /var/www/
