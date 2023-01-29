@@ -52,6 +52,35 @@ resource "aws_route_table_association" "servers_public" {
 }
 
 
+# Creating the 2nd public subnet
+resource "aws_subnet" "servers_public_subnet_02" {
+  vpc_id                  = aws_vpc.servers_vpc.id
+  cidr_block              = var.servers_public_subnet_cidr_block[1]
+  availability_zone       = var.availability_zone[1]
+  map_public_ip_on_launch = true
+  tags = {
+    Name = "servers_public_subnet_02"
+  }
+}
+
+# Creating the public route table
+resource "aws_route_table" "servers_public_rt_02" {
+  vpc_id = aws_vpc.servers_vpc.id
+  route {
+    cidr_block = "0.0.0.0/0"
+    gateway_id = aws_internet_gateway.servers_igw.id
+  }
+}
+
+
+# Associating our public subnet with our public route table
+resource "aws_route_table_association" "servers_public_02" {
+  route_table_id = aws_route_table.servers_public_rt_02.id
+  subnet_id      = aws_subnet.servers_public_subnet_02.id
+}
+
+
+
 # Creating a security group for the Jenkins server
 resource "aws_security_group" "servers_sg" {
   name        = "servers_sg"
@@ -126,70 +155,176 @@ resource "aws_eip" "cba_jenkins_eip" {
 }
 
 
-# Creating the 2nd public subnet
-resource "aws_subnet" "servers_public_subnet_02" {
-  vpc_id                  = aws_vpc.servers_vpc.id
-  cidr_block              = var.servers_public_subnet_cidr_block[1]
-  availability_zone       = var.availability_zone[1]
-  map_public_ip_on_launch = true
+
+######################
+
+resource "aws_security_group" "elb_sg" {
+  name        = "elb_sg"
+  description = "ELB Security group"
+  vpc_id      = aws_vpc.servers_vpc.id
+
+  dynamic "ingress" {
+    for_each = var.rules
+    content {
+      from_port   = ingress.value["port"]
+      to_port     = ingress.value["port"]
+      protocol    = ingress.value["protocol"]
+      cidr_blocks = ingress.value["cidr_blocks"]
+    }
+  }
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
   tags = {
-    Name = "servers_public_subnet_02"
+    Name = "terraformSG"
   }
 }
 
-# Creating the public route table
-resource "aws_route_table" "servers_public_rt_02" {
-  vpc_id = aws_vpc.servers_vpc.id
-  route {
-    cidr_block = "0.0.0.0/0"
-    gateway_id = aws_internet_gateway.servers_igw.id
+#Creating an Elastic Load Balancer
+resource "aws_elb" "web_elb" {
+  name = "web-elb"
+  security_groups = [
+    "${aws_security_group.elb_sg.id}"
+  ]
+  subnets = [
+    "${aws_subnet.servers_public_subnet.id}",
+    "${aws_subnet.servers_public_subnet_02.id}"
+  ]
+
+  cross_zone_load_balancing = true
+
+  health_check {
+    healthy_threshold   = 2
+    unhealthy_threshold = 2
+    timeout             = 3
+    interval            = 30
+    target              = "HTTP:80/"
+  }
+
+  listener {
+    lb_port           = 80
+    lb_protocol       = "http"
+    instance_port     = "80"
+    instance_protocol = "http"
+  }
+
+}
+
+resource "aws_launch_configuration" "web" {
+  name_prefix = "web-"
+
+  image_id      = data.aws_ssm_parameter.instance_ami.value
+  instance_type = var.instance_type[0]
+  key_name      = var.aws_key_pair[0]
+
+  security_groups             = ["${aws_security_group.elb_sg.id}"]
+  associate_public_ip_address = true
+#  user_data                   = file("install_apache.sh")
+
+  lifecycle {
+    create_before_destroy = true
   }
 }
 
 
-# Associating our public subnet with our public route table
-resource "aws_route_table_association" "servers_public_02" {
-  route_table_id = aws_route_table.servers_public_rt_02.id
-  subnet_id      = aws_subnet.servers_public_subnet_02.id
+resource "aws_autoscaling_group" "web" {
+  name = "${aws_launch_configuration.web.name}-asg"
+
+  min_size         = 2
+  desired_capacity = 2
+  max_size         = 2
+
+  health_check_type = "ELB"
+  load_balancers = [
+    "${aws_elb.web_elb.id}"
+  ]
+
+  launch_configuration = aws_launch_configuration.web.name
+
+  enabled_metrics = [
+    "GroupMinSize",
+    "GroupMaxSize",
+    "GroupDesiredCapacity",
+    "GroupInServiceInstances",
+    "GroupTotalInstances"
+  ]
+
+  metrics_granularity = "1Minute"
+
+  vpc_zone_identifier = [
+    "${aws_subnet.servers_public_subnet.id}",
+    "${aws_subnet.servers_public_subnet_02.id}"
+  ]
+
+  # Required to redeploy without an outage.
+  lifecycle {
+    create_before_destroy = true
+  }
+
+  tag {
+    key                 = "Name"
+    value               = "web-servers"
+    propagate_at_launch = true
+  }
+
+}
+
+resource "aws_autoscaling_policy" "web_policy_up" {
+  name                   = "web_policy_up"
+  scaling_adjustment     = 1
+  adjustment_type        = "ChangeInCapacity"
+  cooldown               = 300
+  autoscaling_group_name = aws_autoscaling_group.web.name
 }
 
 
-# Creating a 2nd EC2 instance called cba_jenkins_server_02
-resource "aws_instance" "cba_jenkins_server_02" {
-  ami                    = data.aws_ssm_parameter.instance_ami.value
-  subnet_id              = aws_subnet.servers_public_subnet_02.id
-  instance_type          = var.instance_type[0]
-  vpc_security_group_ids = [aws_security_group.servers_sg.id]
-  key_name               = var.aws_key_pair[0]
-  user_data              = fileexists("install_jenkins.sh") ? file("install_jenkins.sh") : null
-  tags = {
-    Name = "cba_jenkins_server_02"
+resource "aws_cloudwatch_metric_alarm" "web_cpu_alarm_up" {
+  alarm_name          = "web_cpu_alarm_up"
+  comparison_operator = "GreaterThanOrEqualToThreshold"
+  evaluation_periods  = "2"
+  metric_name         = "CPUUtilization"
+  namespace           = "AWS/EC2"
+  period              = "120"
+  statistic           = "Average"
+  threshold           = "70"
+
+  dimensions = {
+    AutoScalingGroupName = "${aws_autoscaling_group.web.name}"
   }
+
+  alarm_description = "This metric monitor EC2 instance CPU utilization"
+  alarm_actions     = ["${aws_autoscaling_policy.web_policy_up.arn}"]
 }
 
 
-#Creating webservers in 1st AZ
-resource "aws_instance" "cba_webserver_01" {
-  ami                    = data.aws_ssm_parameter.instance_ami.value
-  subnet_id              = aws_subnet.servers_public_subnet.id
-  instance_type          = var.instance_type[0]
-  count                  = 2
-  vpc_security_group_ids = [aws_security_group.servers_sg.id]
-  key_name               = var.aws_key_pair[0]
-  tags = {
-    Name = "cba_webserver01"
-  }
+
+resource "aws_autoscaling_policy" "web_policy_down" {
+  name                   = "web_policy_down"
+  scaling_adjustment     = -1
+  adjustment_type        = "ChangeInCapacity"
+  cooldown               = 300
+  autoscaling_group_name = aws_autoscaling_group.web.name
 }
 
-#Creating a webserver in 2nd AZ
-resource "aws_instance" "cba_webserver" {
-  ami                    = data.aws_ssm_parameter.instance_ami.value
-  subnet_id              = aws_subnet.servers_public_subnet_02.id
-  instance_type          = var.instance_type[0]
-  count                  = 2
-  vpc_security_group_ids = [aws_security_group.servers_sg.id]
-  key_name               = var.aws_key_pair[0]
-  tags = {
-    Name = "cba_webserver"
+resource "aws_cloudwatch_metric_alarm" "web_cpu_alarm_down" {
+  alarm_name          = "web_cpu_alarm_down"
+  comparison_operator = "LessThanOrEqualToThreshold"
+  evaluation_periods  = "2"
+  metric_name         = "CPUUtilization"
+  namespace           = "AWS/EC2"
+  period              = "120"
+  statistic           = "Average"
+  threshold           = "30"
+
+  dimensions = {
+    AutoScalingGroupName = "${aws_autoscaling_group.web.name}"
   }
+
+  alarm_description = "This metric monitor EC2 instance CPU utilization"
+  alarm_actions     = ["${aws_autoscaling_policy.web_policy_down.arn}"]
 }
