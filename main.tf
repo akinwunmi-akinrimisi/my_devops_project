@@ -231,14 +231,13 @@ resource "aws_elb" "web_elb" {
   }
 
   listener  {
-    load_balancer_arn = aws_elbv2_load_balancer.web_elb.arn
     instance_port      = 443
     instance_protocol  = "http"
     lb_port            = 443
     lb_protocol        = "https"
   }
 
-  target_group = {
+  target_group {
     name     = "web_elb_target_group"
     port     = 80
     protocol = "HTTP"
