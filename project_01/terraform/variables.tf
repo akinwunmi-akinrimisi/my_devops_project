@@ -1,10 +1,10 @@
 variable "aws_region" {
-  default = "us-east-2"
+  default = "eu-west-2"
 }
 
 variable "availability_zone" {
   type    = list(string)
-  default = ["us-east-2a", "us-east-2b"]
+  default = ["eu-west-2a", "eu-west-2b"]
 }
 
 variable "vpc_cidr_block" {
@@ -28,5 +28,5 @@ variable "instance_type" {
 variable "aws_key_pair" {
   description = "keypair for Servers; Jenkins, Ansible & K8s"
   type        = list(string)
-  default     = ["Jenkins-keypair-us-east", "Ansible-Server-keypair-us-east-2", "K8s-Server-keypair-us-east-2"]
+  default     = ["Jenkins-keypair-eu-west-2", "Ansible-Server-keypair-us-east-2", "K8s-Server-keypair-us-east-2"]
 }
