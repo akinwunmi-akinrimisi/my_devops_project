@@ -251,22 +251,6 @@ resource "aws_elb" "web_elb" {
     healthy_threshold   = 2
     unhealthy_threshold = 2
   }
-
-  listener_rule =  {
-    listener_arn = aws_elbv2_listener.web_elb_listener.arn
-    priority     = 100
-
-    action = {
-      type             = "forward"
-      target_group_arn = aws_elbv2_target_group.web_elb_target_group.arn
-    }
-
-    condition = {
-      path_pattern = {
-        values = ["/*"]
-      }
-    }
-  }
 }
 
 
