@@ -231,19 +231,19 @@ resource "aws_elb" "web_elb" {
   }
 }
 
-  listener {
+  listener = {
     load_balancer_arn = aws_elbv2_load_balancer.web_elb.arn
     protocol          = "HTTP"
     port              = 80
 }
 
-  target_group {
+  target_group = {
   name     = "web_elb_target_group"
   port     = 80
   protocol = "HTTP"
   vpc_id   = aws_vpc.servers_vpc.id
   
-  health_check {
+  health_check = {
     path = "/health"
     interval = 30
     timeout = 5
@@ -252,16 +252,16 @@ resource "aws_elb" "web_elb" {
   }
 }
 
-  listener_rule {
+  listener_rule = {
     listener_arn = aws_elbv2_listener.web_elb_listener.arn
     priority     = 100
 
-  action {
+  action = {
       type             = "forward"
       target_group_arn = aws_elbv2_target_group.web_elb_target_group.arn
   }
 
-  condition {
+  condition = {
     path_pattern {
       values = ["/*"]
     }
