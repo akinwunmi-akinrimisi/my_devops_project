@@ -186,7 +186,7 @@ resource "aws_security_group" "elb_sg" {
 }
 
 #Creating an Elastic Load Balancer
-resource "aws_elb" "web_elb" {
+/* resource "aws_elb" "web_elb" {
   name = "web-elb"
   security_groups = [
     "${aws_security_group.elb_sg.id}"
@@ -213,7 +213,61 @@ resource "aws_elb" "web_elb" {
     instance_protocol = "http"
   }
 
+} */
+
+
+resource "aws_elbv2_load_balancer" "web_elb" {
+  name            = "web_elb"
+  internal        = false
+  security_groups = [
+    "${aws_security_group.elb_sg.id}"
+  ]
+  subnets = [
+    "${aws_subnet.servers_public_subnet.id}",
+    "${aws_subnet.servers_public_subnet_02.id}"
+  ]
+  tags = {
+    Name = "web_elb-new"
+  }
 }
+
+resource "aws_elbv2_listener" "web_elb_listener" {
+  load_balancer_arn = aws_elbv2_load_balancer.web_elb.arn
+  protocol          = "HTTP"
+  port              = 80
+}
+
+resource "aws_elbv2_target_group" "web_elb_target_group" {
+  name     = "web_elb_target_group"
+  port     = 80
+  protocol = "HTTP"
+  vpc_id   = aws_vpc.servers_vpc.id
+  
+  health_check {
+    path = "/health"
+    interval = 30
+    timeout = 5
+    healthy_threshold = 2
+    unhealthy_threshold = 2
+  }
+}
+
+resource "aws_elbv2_listener_rule" "web_elb_rule" {
+  listener_arn = aws_elbv2_listener.web_elb_listener.arn
+  priority     = 100
+
+  action {
+    type             = "forward"
+    target_group_arn = aws_elbv2_target_group.web_elb_target_group.arn
+  }
+
+  condition {
+    path_pattern {
+      values = ["/*"]
+    }
+  }
+}
+
 
 resource "aws_launch_configuration" "web" {
   name_prefix = "web-"
