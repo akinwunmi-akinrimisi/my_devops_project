@@ -216,7 +216,7 @@ resource "aws_security_group" "elb_sg" {
 } */
 
 
-resource "aws_elbv2_load_balancer" "web_elb" {
+resource "aws_elb" "web_elb" {
   name            = "web_elb"
   internal        = false
   security_groups = [
@@ -231,13 +231,13 @@ resource "aws_elbv2_load_balancer" "web_elb" {
   }
 }
 
-resource "aws_elbv2_listener" "web_elb_listener" {
+resource "aws_elb_listener" "web_elb_listener" {
   load_balancer_arn = aws_elbv2_load_balancer.web_elb.arn
   protocol          = "HTTP"
   port              = 80
 }
 
-resource "aws_elbv2_target_group" "web_elb_target_group" {
+resource "aws_elb_target_group" "web_elb_target_group" {
   name     = "web_elb_target_group"
   port     = 80
   protocol = "HTTP"
@@ -252,7 +252,7 @@ resource "aws_elbv2_target_group" "web_elb_target_group" {
   }
 }
 
-resource "aws_elbv2_listener_rule" "web_elb_rule" {
+resource "aws_elb_listener_rule" "web_elb_rule" {
   listener_arn = aws_elbv2_listener.web_elb_listener.arn
   priority     = 100
 
