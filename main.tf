@@ -217,7 +217,7 @@ resource "aws_security_group" "elb_sg" {
 
 
 resource "aws_elb" "web_elb" {
-  name     = "web_elb"
+  name     = "webelb"
   internal = false
   security_groups = [
     "${aws_security_group.elb_sg.id}"
