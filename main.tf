@@ -229,7 +229,6 @@ resource "aws_elb" "web_elb" {
   tags = {
     Name = "web_elb-new"
   }
-}
 
   listener = {
     load_balancer_arn = aws_elbv2_load_balancer.web_elb.arn
@@ -242,14 +241,14 @@ resource "aws_elb" "web_elb" {
     port     = 80
     protocol = "HTTP"
     vpc_id   = aws_vpc.servers_vpc.id
+  }
 
-    health_check = {
-      path                = "/health"
-      interval            = 30
-      timeout             = 5
-      healthy_threshold   = 2
-      unhealthy_threshold = 2
-    }
+  health_check = {
+    path                = "/health"
+    interval            = 30
+    timeout             = 5
+    healthy_threshold   = 2
+    unhealthy_threshold = 2
   }
 
   listener_rule = {
@@ -267,6 +266,9 @@ resource "aws_elb" "web_elb" {
       }
     }
   }
+}
+
+
 
 
 resource "aws_launch_configuration" "web" {
