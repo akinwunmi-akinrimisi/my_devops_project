@@ -231,13 +231,13 @@ resource "aws_elb" "web_elb" {
   }
 }
 
-resource "aws_elb_listener" "web_elb_listener" {
-  load_balancer_arn = aws_elbv2_load_balancer.web_elb.arn
-  protocol          = "HTTP"
-  port              = 80
+  listener {
+    load_balancer_arn = aws_elbv2_load_balancer.web_elb.arn
+    protocol          = "HTTP"
+    port              = 80
 }
 
-resource "aws_elb_target_group" "web_elb_target_group" {
+  target_group {
   name     = "web_elb_target_group"
   port     = 80
   protocol = "HTTP"
@@ -252,13 +252,13 @@ resource "aws_elb_target_group" "web_elb_target_group" {
   }
 }
 
-resource "aws_elb_listener_rule" "web_elb_rule" {
-  listener_arn = aws_elbv2_listener.web_elb_listener.arn
-  priority     = 100
+  listener_rule {
+    listener_arn = aws_elbv2_listener.web_elb_listener.arn
+    priority     = 100
 
   action {
-    type             = "forward"
-    target_group_arn = aws_elbv2_target_group.web_elb_target_group.arn
+      type             = "forward"
+      target_group_arn = aws_elbv2_target_group.web_elb_target_group.arn
   }
 
   condition {
