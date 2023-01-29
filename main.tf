@@ -237,14 +237,14 @@ resource "aws_elb" "web_elb" {
     lb_protocol        = "https"
   }
 
-  target_group {
+  /* target_group {
     name     = "web_elb_target_group"
     port     = 80
     protocol = "HTTP"
     vpc_id   = aws_vpc.servers_vpc.id
-  }
+  } */
 
-  health_check = {
+  health_check {
     path                = "/health"
     interval            = 30
     timeout             = 5
@@ -252,7 +252,7 @@ resource "aws_elb" "web_elb" {
     unhealthy_threshold = 2
   }
 
-  listener_rule = {
+  listener_rule  {
     listener_arn = aws_elbv2_listener.web_elb_listener.arn
     priority     = 100
 
