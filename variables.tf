@@ -30,3 +30,24 @@ variable "aws_key_pair" {
   type        = list(string)
   default     = ["Jenkins-keypair-eu-west-2", "Ansible-Server-keypair-us-east-2", "K8s-Server-keypair-us-east-2"]
 }
+
+variable "rules" {
+  type = list(object({
+    port        = number
+    protocol    = string
+    cidr_blocks = list(string)
+  }))
+
+  default = [
+    {
+      port        = 80
+      protocol    = "tcp"
+      cidr_blocks = ["0.0.0.0/0"]
+    },
+    {
+      port        = 22
+      protocol    = "tcp"
+      cidr_blocks = ["0.0.0.0/0"]
+    }
+  ]
+}
