@@ -246,6 +246,7 @@ resource "aws_elb" "web_elb" {
 
   health_check {
     path                = "/health"
+    target =  "HTTP:80/"
     interval            = 30
     timeout             = 5
     healthy_threshold   = 2
