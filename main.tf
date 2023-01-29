@@ -252,7 +252,7 @@ resource "aws_elb" "web_elb" {
     unhealthy_threshold = 2
   }
 
-  listener_rule  {
+  listener_rule =  {
     listener_arn = aws_elbv2_listener.web_elb_listener.arn
     priority     = 100
 
