@@ -230,7 +230,7 @@ resource "aws_elb" "web_elb" {
     Name = "web_elb-new"
   }
 
-  listener = {
+  listener  {
     load_balancer_arn = aws_elbv2_load_balancer.web_elb.arn
     protocol          = "HTTP"
     port              = 80
